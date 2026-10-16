@@ -451,7 +451,7 @@ public final class DashboardHud {
     private float speedWidth(){return metricWidth(widgets.enabled(WidgetSettings.SPEED_CHART),"88.8","km/h");}
     private float powerWidth(){return metricWidth(widgets.enabled(WidgetSettings.POWER_CHART),"-8888","W");}
     /** Centered ring gauge fed by the navigation app's speed first and the vehicle's rSpeed as fallback; display only, touches pass through. */
-    private static final float GAUGE_RADIUS=84,GAUGE_PAD=10,GAUGE_STROKE=9,GAUGE_MAX=60,GAUGE_START=135,GAUGE_SWEEP=270;
+    private static final float GAUGE_RADIUS=84,GAUGE_PAD=10,GAUGE_STROKE=9,GAUGE_MAX=45,GAUGE_START=135,GAUGE_SWEEP=270;
     private final RectF gaugeArc=new RectF();
     private void drawGauge(Canvas c,float cx,float cy,long now){
         float speed=gaugeSpeed(now);
