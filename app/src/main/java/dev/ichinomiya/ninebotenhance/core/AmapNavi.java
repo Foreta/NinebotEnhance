@@ -19,7 +19,13 @@ public final class AmapNavi {
         int maneuver=intValue(root,"curManeuverID"),lights=intValue(root,"routeRemainLightCount");
         if(total<0||remain<0||segment<0)return null;
         return new NaviUpdate("amap",total,remain,Math.max(0,seconds),Math.max(0,driven),Math.max(0,driveTime),
-                NaviUpdate.clean(Json.string(root.get("curRouteName"))),NaviUpdate.clean(Json.string(root.get("nextRouteName"))),segment,Math.max(0,maneuver),Math.max(0,lights),0);
+                NaviUpdate.clean(Json.string(root.get("curRouteName"))),NaviUpdate.clean(Json.string(root.get("nextRouteName"))),segment,Math.max(0,maneuver),Math.max(0,lights),0,speed(root));
+    }
+    /** Current speed in km/h; the guidance JSON names it differently across AMap versions, and some builds omit it entirely. */
+    private static final String[] SPEED_KEYS={"curSpeed","speed","curSpeedKmh","naviSpeed","currentSpeed"};
+    private static float speed(Map<String,Object> root){
+        for(String key:SPEED_KEYS){double v=Json.number(root.get(key),-1);if(v>=0&&v<400)return (float)v;}
+        return -1f;
     }
     public static NaviDestination parseDestination(String json,int scene){
         if(json==null||json.indexOf("\"eventType\"")<0)return null;

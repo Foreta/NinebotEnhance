@@ -63,6 +63,9 @@ public final class SidebarLayout {
     public static final Box HILL_HOLD_TOAST=new Box(574,372,848,462);
     /** Voltage, speed and power cards share one size: a single row, or a row plus a chart. */
     public static float metricHeight(boolean chart){return chart?VOLTAGE_CHART_HEIGHT:VOLTAGE_HEIGHT;}
+    /** Compact mode shrinks every card's height (and the renderer scales its content to match); gaps and notifications stay. */
+    public static final float COMPACT_FACTOR=0.72f;
+    public static float compactFactor(WidgetSettings s){return s.enabled(WidgetSettings.COMPACT)?COMPACT_FACTOR:1f;}
     public static float voltageHeight(boolean chart){return metricHeight(chart);}
     /** Notification cards relative to the bottom edge; the renderer moves them to the block's place in the order. */
     public static Box notification(int width,float slot,float enter,float exit){
@@ -129,10 +132,11 @@ public final class SidebarLayout {
         return new Stack(placed.get(WidgetSettings.PHONE),placed.get(WidgetSettings.MUSIC),placed.get(WidgetSettings.VOLTAGE),placed.get(WidgetSettings.TYRES),placed.get(WidgetSettings.SPEED),placed.get(WidgetSettings.POWER),placed.get(WidgetSettings.LAMP),placed.get(WidgetSettings.BMS),notificationBottom,dodged);
     }
     private static float height(WidgetSettings s,Sizes z,int widget){
+        float f=compactFactor(s);
         return switch(widget){
-            case WidgetSettings.PHONE->PHONE_HEIGHT;case WidgetSettings.MUSIC->MUSIC_HEIGHT;case WidgetSettings.TYRES->TYRE_HEIGHT;
-            case WidgetSettings.VOLTAGE->metricHeight(s.enabled(WidgetSettings.VOLTAGE_CHART));case WidgetSettings.SPEED->metricHeight(s.enabled(WidgetSettings.SPEED_CHART));
-            case WidgetSettings.POWER->metricHeight(s.enabled(WidgetSettings.POWER_CHART));case WidgetSettings.LAMP->LAMP_HEIGHT;case WidgetSettings.BMS->z.bmsHeight();default->0;
+            case WidgetSettings.PHONE->PHONE_HEIGHT*f;case WidgetSettings.MUSIC->MUSIC_HEIGHT*f;case WidgetSettings.TYRES->TYRE_HEIGHT*f;
+            case WidgetSettings.VOLTAGE->metricHeight(s.enabled(WidgetSettings.VOLTAGE_CHART))*f;case WidgetSettings.SPEED->metricHeight(s.enabled(WidgetSettings.SPEED_CHART))*f;
+            case WidgetSettings.POWER->metricHeight(s.enabled(WidgetSettings.POWER_CHART))*f;case WidgetSettings.LAMP->LAMP_HEIGHT*f;case WidgetSettings.BMS->z.bmsHeight()*f;default->0;
         };
     }
     private static float width(Sizes z,int widget){

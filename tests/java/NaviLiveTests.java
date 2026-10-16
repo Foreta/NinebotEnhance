@@ -12,5 +12,9 @@ final class NaviLiveTests {
         CoreTests.check(stamped.fresh(10_000)&&stamped.fresh(18_000)&&!stamped.fresh(18_001)&&!u.fresh(5)&&!stamped.arrived(),"freshness follows the receive time");
         CoreTests.check(new NaviUpdate("x",100,0,0,100,50,"","",0,9,0,1).arrived()&&new NaviUpdate("x",100,10,5,90,50,"","",10,15,0,1).arrived(),"arrival is the arrived icon or nothing left of a known route");
         CoreTests.check(u.describe().contains("remain=6521m/725s")&&u.describe().contains("icon=3"),"the description names the fields");
+        CoreTests.check(u.speed()<0&&u.receivedAt(10_000).speedKmh(10_000)<0,"a -1 speed in the event stays unknown");
+        NaviUpdate moving=AmapNavi.parse(AMAP_EVENT_1.replace("\"speed\":-1.000000","\"speed\":25.5"));
+        CoreTests.check(moving!=null&&moving.speed()==25.5f&&moving.receivedAt(10_000).speedKmh(12_999)==25.5f&&moving.receivedAt(10_000).speedKmh(13_001)<0,"a reported speed is read in km/h and goes stale within three seconds");
+        CoreTests.check(dev.ichinomiya.ninebotenhance.navi.NaviUpdates.fromJson(dev.ichinomiya.ninebotenhance.navi.NaviUpdates.toJson(moving)).speed()==25.5f,"the speed survives the json round-trip");
     }
 }

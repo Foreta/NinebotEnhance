@@ -28,6 +28,8 @@ public final class WidgetSettingsDialog {
         for(int flag:topDown)list.addView(flag==WidgetSettings.COLUMN_DIVIDER?divider(activity,theme,list,scroll):row(activity,frames,reference,theme,settings,flag,checks,list,scroll),rowParams(activity));
         content.addView(list);
         content.addView(row(activity,frames,reference,theme,settings,WidgetSettings.VOLUME,checks,null,null),rowParams(activity));
+        content.addView(row(activity,frames,reference,theme,settings,WidgetSettings.NAVI_GAUGE,checks,null,null),rowParams(activity));
+        content.addView(row(activity,frames,reference,theme,settings,WidgetSettings.COMPACT,checks,null,null),rowParams(activity));
         LinearLayout hold=(LinearLayout)row(activity,frames,reference,theme,settings,WidgetSettings.HILL_HOLD_DODGE,checks,null,null);
         if(!frames.hillHoldSupported())for(int i=0;i<hold.getChildCount();i++)hold.getChildAt(i).setEnabled(false);
         content.addView(hold,rowParams(activity));
@@ -53,7 +55,8 @@ public final class WidgetSettingsDialog {
     static String label(int flag){
         return switch(flag){
             case WidgetSettings.PHONE->"手机状态";case WidgetSettings.MUSIC->"音乐";case WidgetSettings.TYRES->"胎压";case WidgetSettings.VOLTAGE->"电压";case WidgetSettings.SPEED->"速度";
-            case WidgetSettings.POWER->"功率";case WidgetSettings.NOTIFICATIONS->"通知";case WidgetSettings.VOLUME->"音量";case WidgetSettings.HILL_HOLD_DODGE->"驻车避让";case WidgetSettings.LAMP->"大灯";case WidgetSettings.BMS->"BMS";default->"";
+            case WidgetSettings.POWER->"功率";case WidgetSettings.NOTIFICATIONS->"通知";case WidgetSettings.VOLUME->"音量";case WidgetSettings.HILL_HOLD_DODGE->"驻车避让";case WidgetSettings.LAMP->"大灯";case WidgetSettings.BMS->"BMS";
+            case WidgetSettings.NAVI_GAUGE->"速度表盘";case WidgetSettings.COMPACT->"紧凑卡片";default->"";
         };
     }
     private static LinearLayout.LayoutParams rowParams(Activity activity){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=MirrorUi.dp(activity,4);return p;}
@@ -76,7 +79,7 @@ public final class WidgetSettingsDialog {
         CheckBox box=new CheckBox(activity);checks.put(flag,box);box.setText(label(flag));box.setTextColor(theme.text);box.setTextSize(16);
         box.setButtonTintList(ColorStateList.valueOf(theme.accent));box.setPadding(0,MirrorUi.dp(activity,9),0,MirrorUi.dp(activity,9));box.setChecked(settings.enabled(flag));
         row.addView(box,new LinearLayout.LayoutParams(0,-2,1));
-        if(flag!=WidgetSettings.HILL_HOLD_DODGE)row.addView(small(activity,theme,"条件",v->WidgetConditionDialog.show(activity,frames,reference,flag,label(flag))),smallParams(activity));
+        if(flag!=WidgetSettings.HILL_HOLD_DODGE&&flag!=WidgetSettings.NAVI_GAUGE&&flag!=WidgetSettings.COMPACT)row.addView(small(activity,theme,"条件",v->WidgetConditionDialog.show(activity,frames,reference,flag,label(flag))),smallParams(activity));
         Runnable open=switch(flag){
             case WidgetSettings.TYRES->()->WidgetOptionsDialog.tyres(activity,frames,reference);
             case WidgetSettings.VOLTAGE->()->WidgetOptionsDialog.voltage(activity,frames,reference);

@@ -13,12 +13,13 @@ public final class NaviUpdates {
         b.putString("source",u.source());b.putInt("total",u.totalDistance());b.putInt("remain",u.remainDistance());b.putInt("remain_s",u.remainSeconds());
         b.putInt("driven",u.drivenDistance());b.putInt("driven_s",u.drivenSeconds());b.putString("cur",u.currentRoad());b.putString("next",u.nextRoad());
         b.putInt("segment",u.segmentRemain());b.putInt("icon",u.maneuver());b.putInt("lights",u.lights());b.putLong("received",u.receivedAt());
+        b.putFloat("speed",u.speed());
         return b;
     }
     public static NaviUpdate fromBundle(Bundle b){
         if(b==null||!b.containsKey("remain"))return null;
         return new NaviUpdate(b.getString("source",""),b.getInt("total"),b.getInt("remain"),b.getInt("remain_s"),b.getInt("driven"),b.getInt("driven_s"),
-                b.getString("cur",""),b.getString("next",""),b.getInt("segment"),b.getInt("icon"),b.getInt("lights"),b.getLong("received"));
+                b.getString("cur",""),b.getString("next",""),b.getInt("segment"),b.getInt("icon"),b.getInt("lights"),b.getLong("received"),b.getFloat("speed",-1f));
     }
     /** Compact single-line JSON for the loopback channel; road names are escaped. */
     public static String toJson(NaviUpdate u){
@@ -27,13 +28,14 @@ public final class NaviUpdates {
         num(b,"remain_s",u.remainSeconds());b.append(',');num(b,"driven",u.drivenDistance());b.append(',');num(b,"driven_s",u.drivenSeconds());b.append(',');
         field(b,"cur",u.currentRoad());b.append(',');field(b,"next",u.nextRoad());b.append(',');num(b,"segment",u.segmentRemain());b.append(',');
         num(b,"icon",u.maneuver());b.append(',');num(b,"lights",u.lights());
+        if(u.speed()>=0)b.append(",\"speed\":").append(u.speed());
         return b.append('}').toString();
     }
     public static NaviUpdate fromJson(String json){
         Map<String,Object> root;try{root=Json.object(Json.parse(json));}catch(RuntimeException e){return null;}
         if(root==null||!root.containsKey("remain"))return null;
         return new NaviUpdate(str(root,"source"),i(root,"total"),i(root,"remain"),i(root,"remain_s"),i(root,"driven"),i(root,"driven_s"),
-                str(root,"cur"),str(root,"next"),i(root,"segment"),i(root,"icon"),i(root,"lights"),0);
+                str(root,"cur"),str(root,"next"),i(root,"segment"),i(root,"icon"),i(root,"lights"),0,(float)Json.number(root.get("speed"),-1));
     }
     public static Bundle toBundle(NaviDestination d){
         Bundle b=new Bundle();b.putString("kind","dest");b.putString("source",d.source());b.putString("name",d.name());b.putString("poi",d.poiId());

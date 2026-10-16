@@ -23,6 +23,7 @@ import dev.ichinomiya.ninebotenhance.core.BmsSettings;
 import dev.ichinomiya.ninebotenhance.core.BmsState;
 import dev.ichinomiya.ninebotenhance.core.WidgetCondition;
 import dev.ichinomiya.ninebotenhance.core.SidebarLayout;
+import dev.ichinomiya.ninebotenhance.core.NaviUpdate;
 import java.util.*;
 
 /** Canvas counterpart of the approved HTML. Immutable card images; no UI overlays or touch injection. */
@@ -83,9 +84,21 @@ public final class DashboardHud {
     public void setOcclusions(List<SidebarLayout.Box> boxes){configuredOcclusions=boxes==null||boxes.isEmpty()?null:List.copyOf(boxes);}
     public List<SidebarLayout.Box> occlusions(){List<SidebarLayout.Box> configured=configuredOcclusions;return configured!=null?configured:profile.occlusions();}
     private List<RegisterProbe.Row> probeRows;private RideState.Snapshot ride;
+    /** Latest phone-navigation state, polled by the frame client once a second; the gauge takes its speed from it first. */
+    private NaviUpdate navi;
+    public synchronized void acceptNavi(NaviUpdate update){
+        long now=android.os.SystemClock.elapsedRealtime();
+        float before=naviSpeed(now);navi=update;float after=naviSpeed(now);
+        if(Math.abs(before-after)>=0.5f||(before<0)!=(after<0))revision++;
+    }
+    /** Speed reported by the navigation app, or -1 while none has arrived within its freshness window. */
+    private float naviSpeed(long now){return navi==null?-1f:navi.speedKmh(now);}
+    /** What the gauge shows: the navigation app's speed while fresh, otherwise the vehicle's own rSpeed reading. */
+    private float gaugeSpeed(long now){float v=naviSpeed(now);if(v>=0)return v;return speedExpired(now)?-1f:ride.speedKmh();}
+    private String gaugeSource(long now){if(naviSpeed(now)>=0)return "高德";return speedExpired(now)?"":"车辆";}
     public synchronized void reset(){reset("");}
     public synchronized void reset(String request){
-        session=request;timeline.clear();phone=music=null;tires=TireTelemetry.EMPTY;battery=BatteryTelemetry.EMPTY;artwork=null;artRevision=-1;epoch="";cursor=-1;receiving=false;lastUpdate=0;simulatedUntil=0;
+        session=request;timeline.clear();phone=music=null;tires=TireTelemetry.EMPTY;battery=BatteryTelemetry.EMPTY;artwork=null;artRevision=-1;epoch="";cursor=-1;receiving=false;lastUpdate=0;simulatedUntil=0;navi=null;
         phoneMotion=new CardMotion();musicMotion=new CardMotion();voltageMotion=new CardMotion();tyreMotion=new CardMotion();speedMotion=new CardMotion();powerMotion=new CardMotion();lampMotion=new CardMotion();bmsMotion=new CardMotion();detector.reset();
         ride=null;Arrays.fill(shownUntil,0);musicKeyShown="";musicMovingShown=false;volumeSeq=-1;volumeShownAt=volumeShownUntil=-1;volumeFillAt=0;volumeFillFrom=volumeFillTo=0;revision++;
     }
@@ -238,10 +251,12 @@ public final class DashboardHud {
             ||widgets.enabled(WidgetSettings.POWER)&&widgets.enabled(WidgetSettings.POWER_CHART)&&live(powerHistory,now,widgets.powerChartWindowMs());
     }
     private static boolean live(ArrayDeque<Sample> history,long now,long window){int count=0;for(Sample s:history)if(s.elapsed()>=now-window&&s.elapsed()<=now)count++;return count>=2;}
+    /** The gauge re-encodes once a second while any speed source exists, so the fallback swaps in as a reading goes stale. */
+    private boolean gaugeTick(long now){return widgets.enabled(WidgetSettings.NAVI_GAUGE)&&(navi!=null||ride!=null);}
     /** Static cards only re-encode when a value expires; animations tick at 20 Hz, playing music and a live chart once a second. */
     public synchronized long revision(long now){
         sync(now);
-        long tick=animating(now)?now/50:musicMoving(now)||chartLive(now)||probeShown()?now/1000:0;
+        long tick=animating(now)?now/50:musicMoving(now)||chartLive(now)||probeShown()||gaugeTick(now)?now/1000:0;
         long flags=expiryFlags(now)|(hillHold(now)?1024:0)|(volumeVisible(now)?2048:0)|((long)visibleBits(now)<<12);
         // Ten conditional widgets need 22 flag bits; the tick keeps the rest of the 44 below the revision.
         return(revision<<44)^((flags&0x3FFFFFL)<<22)^(tick&0x3FFFFFL);
@@ -274,6 +289,7 @@ public final class DashboardHud {
             drawCard(canvas,musicMotion,now,box->drawMusic(canvas,now,box));
             drawCard(canvas,phoneMotion,now,box->drawPhone(canvas,box));
             drawVolume(canvas,now);
+            if(widgets.enabled(WidgetSettings.NAVI_GAUGE))drawGauge(canvas,(width/2f-fit.dx())/scale,(height/2f-fit.dy())/scale,now);
             if(probeShown())drawProbe(canvas,now);
             for(NotificationTimeline.Entry<Card> e:cards){
                 float exit=e.exit(now);float w=e.data.bitmap.getWidth();SidebarLayout.Box bounds=notificationBox(e,now);float x=bounds.left()+dx,y=bounds.top()+dyN;
@@ -289,7 +305,10 @@ public final class DashboardHud {
         float alpha=motion.alpha(now);if(alpha<=0)return;
         int saved=alpha<1?c.saveLayerAlpha(box.left()-1,box.top()-1,box.right()+1,box.bottom()+1,Math.round(255*alpha)):c.save();
         c.clipRect(box.left()-1,box.top()-1,box.right()+1,box.bottom()+1);c.translate(0,box.top());
-        painter.paint(new SidebarLayout.Box(box.left(),0,box.right(),box.height()));
+        // Compact mode paints every card's content at the legacy size through a shrink transform, so fonts and glyphs scale with the card.
+        float k=SidebarLayout.compactFactor(widgets);
+        if(k!=1){c.scale(k,k,box.left(),0);painter.paint(new SidebarLayout.Box(box.left(),0,box.left()+box.width()/k,box.height()/k));}
+        else painter.paint(new SidebarLayout.Box(box.left(),0,box.right(),box.height()));
         c.restoreToCount(saved);
     }
     private Bitmap card(Bundle b){
@@ -431,6 +450,26 @@ public final class DashboardHud {
     private float voltageWidth(){return metricWidth(widgets.enabled(WidgetSettings.VOLTAGE_CHART),"888.8","V");}
     private float speedWidth(){return metricWidth(widgets.enabled(WidgetSettings.SPEED_CHART),"88.8","km/h");}
     private float powerWidth(){return metricWidth(widgets.enabled(WidgetSettings.POWER_CHART),"-8888","W");}
+    /** Centered ring gauge fed by the navigation app's speed first and the vehicle's rSpeed as fallback; display only, touches pass through. */
+    private static final float GAUGE_RADIUS=84,GAUGE_PAD=10,GAUGE_STROKE=9,GAUGE_MAX=60,GAUGE_START=135,GAUGE_SWEEP=270;
+    private final RectF gaugeArc=new RectF();
+    private void drawGauge(Canvas c,float cx,float cy,long now){
+        float speed=gaugeSpeed(now);
+        paint.setStyle(Paint.Style.FILL);paint.setColor(p.surface());paint.setAlpha(205);c.drawCircle(cx,cy,GAUGE_RADIUS+GAUGE_PAD,paint);paint.setAlpha(255);
+        paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1);paint.setColor(p.border());c.drawCircle(cx,cy,GAUGE_RADIUS+GAUGE_PAD,paint);
+        gaugeArc.set(cx-GAUGE_RADIUS,cy-GAUGE_RADIUS,cx+GAUGE_RADIUS,cy+GAUGE_RADIUS);
+        paint.setStrokeWidth(GAUGE_STROKE);paint.setStrokeCap(Paint.Cap.ROUND);paint.setColor(p.track());
+        c.drawArc(gaugeArc,GAUGE_START,GAUGE_SWEEP,false,paint);
+        if(speed>0){paint.setColor(p.accent());c.drawArc(gaugeArc,GAUGE_START,Math.min(GAUGE_SWEEP,GAUGE_SWEEP*speed/GAUGE_MAX),false,paint);}
+        paint.setStyle(Paint.Style.FILL);paint.setStrokeCap(Paint.Cap.BUTT);
+        centerGlyph(c,speed<0?"--":String.valueOf(Math.round(speed)),cx,cy-8,54,p.text(),true);
+        centerGlyph(c,"km/h",cx,cy+28,13,p.unit(),false);
+        String source=gaugeSource(now);if(!source.isEmpty())centerGlyph(c,source,cx,cy+50,11,p.label(),false);
+        if(navi!=null&&navi.fresh(now)&&navi.totalDistance()>0){
+            String remain=navi.remainDistance()>=1000?String.format(Locale.ROOT,"剩余 %.1f km",navi.remainDistance()/1000f):"剩余 "+navi.remainDistance()+" m";
+            centerGlyph(c,remain,cx,cy+68,10,p.label(),false);
+        }
+    }
     /** Vertical level bar above the dashboard speaker icon; slides in from the left after a volume change, never a touch target. */
     private void drawVolume(Canvas c,long now){
         float offset=volumeOffset(now);if(Float.isNaN(offset))return;SidebarLayout.Box b=profile.volume();
@@ -480,7 +519,10 @@ public final class DashboardHud {
         return new PhoneLayout(width,simsX,slotX,batteryX,percentLeft,slot,count,known,percent);
     }
     private float phoneWidth(){return phone==null?0:phoneLayout(SIDEBAR_RIGHT).width();}
-    private SidebarLayout.Sizes sizes(){return new SidebarLayout.Sizes(phoneWidth(),musicWidth(),voltageWidth(),tyreWidth(),speedWidth(),powerWidth(),lampWidth(),SidebarLayout.WIDTH,bmsHeight(android.os.SystemClock.elapsedRealtime()));}
+    private SidebarLayout.Sizes sizes(){
+        float k=SidebarLayout.compactFactor(widgets);
+        return new SidebarLayout.Sizes(phoneWidth()*k,musicWidth(),voltageWidth()*k,tyreWidth(),speedWidth()*k,powerWidth()*k,lampWidth()*k,SidebarLayout.WIDTH,bmsHeight(android.os.SystemClock.elapsedRealtime()));
+    }
     private void bar(Canvas c,float x,float y,float width,float height,float fraction){paint.setStyle(Paint.Style.FILL);paint.setColor(p.track());c.drawRoundRect(x,y,x+width,y+height,height/2,height/2,paint);paint.setColor(p.accent());c.drawRoundRect(x,y,x+width*Math.max(0,Math.min(1,fraction)),y+height,height/2,height/2,paint);}
     /** Display-only HUD consumes touches so they cannot reach the application behind it; cards use their settled targets. */
     public synchronized Bundle touch(float x,float y,int width,int height,long now){

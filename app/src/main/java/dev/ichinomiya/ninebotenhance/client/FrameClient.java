@@ -757,6 +757,7 @@ public final class FrameClient {
                 WidgetSettings current = widgets;
                 hud.acceptProbe(current.enabled(WidgetSettings.REGISTER_PROBE) ? probe.snapshot(probeSelection, probeRawModules) : null);
                 hud.acceptRide(ride.snapshot());
+                hud.acceptNavi(liveNavi);
                 // Local simulation reads too when the vehicle happens to be connected, so reads can be checked without casting.
                 // The drawn picture reads what its gauge and fields show; the passed-through capture reads nothing.
                 WidgetSettings reads = drawing ? drawReads(current) : current;

@@ -8,19 +8,22 @@ public record WidgetSettings(int mask,int tyreIntervalSeconds,int voltageInterva
                              List<Integer> order,Map<Integer,WidgetCondition> conditions) {
     public static final int PHONE=1,TYRES=2,MUSIC=4,NOTIFICATIONS=16,TYRE_FRONT=32,TYRE_REAR=64,VOLTAGE=128,TYRE_READ=256,
             VOLTAGE_READ=512,VOLTAGE_CHART=1024,MUSIC_AUTO_HIDE=2048,VOLUME=4096,REGISTER_PROBE=8192,HILL_HOLD_DODGE=16384,
-            SPEED=32768,POWER=65536,SPEED_CHART=131072,POWER_CHART=262144,LAMP=524288,BMS=1048576,VOLTAGE_FROM_BMS=2097152,POWER_FROM_BMS=4194304;
+            SPEED=32768,POWER=65536,SPEED_CHART=131072,POWER_CHART=262144,LAMP=524288,BMS=1048576,VOLTAGE_FROM_BMS=2097152,POWER_FROM_BMS=4194304,
+            NAVI_GAUGE=8388608,COMPACT=16777216;
     public static final int ALL=PHONE|TYRES|MUSIC|NOTIFICATIONS|TYRE_FRONT|TYRE_REAR|VOLTAGE|TYRE_READ|VOLTAGE_READ|VOLTAGE_CHART|MUSIC_AUTO_HIDE|VOLUME|REGISTER_PROBE|HILL_HOLD_DODGE
-            |SPEED|POWER|SPEED_CHART|POWER_CHART|LAMP|BMS|VOLTAGE_FROM_BMS|POWER_FROM_BMS;
+            |SPEED|POWER|SPEED_CHART|POWER_CHART|LAMP|BMS|VOLTAGE_FROM_BMS|POWER_FROM_BMS|NAVI_GAUGE|COMPACT;
     /** Switches introduced by later preference versions; masks saved by older builds get them switched on once. */
-    public static final int ADDED_IN_V2=VOLTAGE_READ|VOLTAGE_CHART|MUSIC_AUTO_HIDE|VOLUME,ADDED_IN_V3=HILL_HOLD_DODGE,ADDED_IN_V4=SPEED_CHART|POWER_CHART;
+    public static final int ADDED_IN_V2=VOLTAGE_READ|VOLTAGE_CHART|MUSIC_AUTO_HIDE|VOLUME,ADDED_IN_V3=HILL_HOLD_DODGE,ADDED_IN_V4=SPEED_CHART|POWER_CHART,ADDED_IN_V8=NAVI_GAUGE;
     /**
      * Version 5 changed the hill-hold minimum time semantics (it now gates the release too) and reset its default; older saves
      * take the new default. Version 6 added the lamp card, which older saves must not inherit: without a bound lamp it would
      * only ever read "未连接". Version 7 added the BMS card and the two BMS-first source switches, likewise not inherited.
+     * Version 8 added the navigation speed gauge (on by default, older saves gain it) and the compact card switch (opt-in,
+     * like the other layout-changing switches).
      */
-    public static final int PREFERENCE_VERSION=7;
+    public static final int PREFERENCE_VERSION=8;
     /** A fresh install shows only the voltage, music, tyre, phone and notification cards; every other switch starts off. */
-    public static final int OFF_BY_DEFAULT=REGISTER_PROBE|SPEED|POWER|LAMP|BMS|VOLTAGE_FROM_BMS|POWER_FROM_BMS|VOLUME|HILL_HOLD_DODGE;
+    public static final int OFF_BY_DEFAULT=REGISTER_PROBE|SPEED|POWER|LAMP|BMS|VOLTAGE_FROM_BMS|POWER_FROM_BMS|VOLUME|HILL_HOLD_DODGE|COMPACT;
     /** Marker inside the order: entries before it form the right column (bottom up), entries after it the left column (bottom up). */
     public static final int COLUMN_DIVIDER=0;
     /** Cards of the two columns; the notification block is one of them and always belongs to the right column. */
@@ -93,6 +96,7 @@ public record WidgetSettings(int mask,int tyreIntervalSeconds,int voltageInterva
         if(version<5)holdSeconds=DEFAULT_HOLD_SECONDS;
         if(version<6)upgraded&=~LAMP;
         if(version<7)upgraded&=~(BMS|VOLTAGE_FROM_BMS|POWER_FROM_BMS);
+        if(version<8)upgraded|=ADDED_IN_V8;
         return new WidgetSettings(upgraded,tyreSeconds,voltageMs,musicHideSeconds,chartSeconds,holdPowerMin,holdSpeedMax,speedMs,powerMs,holdPowerMax,holdSeconds,speedChartSeconds,powerChartSeconds,order,conditions);
     }
     public boolean enabled(int widget){return (mask&widget)!=0;}
@@ -161,8 +165,8 @@ public record WidgetSettings(int mask,int tyreIntervalSeconds,int voltageInterva
     public boolean readsTyres(){return showsTyres()||conditionsUse(WidgetCondition.TYRE_CHECKS);}
     /** With the BMS as the voltage source the vehicle register is left alone; the card and its conditions read the board instead. */
     public boolean readsVoltage(){return !enabled(VOLTAGE_FROM_BMS)&&(enabled(VOLTAGE)||conditionsUse(WidgetCondition.VOLTAGE));}
-    /** Speed and power are read for their own cards, for hill-hold detection and for conditions that check them. */
-    public boolean readsSpeed(){return enabled(SPEED)||enabled(HILL_HOLD_DODGE)||conditionsUse(WidgetCondition.SPEED);}
+    /** Speed and power are read for their own cards, for hill-hold detection, for the gauge's vehicle-speed fallback and for conditions that check them. */
+    public boolean readsSpeed(){return enabled(SPEED)||enabled(HILL_HOLD_DODGE)||enabled(NAVI_GAUGE)||conditionsUse(WidgetCondition.SPEED);}
     /** With the BMS as the power source the vehicle register is only read for hill hold, which never takes the board's value. */
     public boolean readsPower(){return enabled(HILL_HOLD_DODGE)||!enabled(POWER_FROM_BMS)&&(enabled(POWER)||conditionsUse(WidgetCondition.POWER));}
     public long tyreLimitMs(){return tyreIntervalSeconds*1000L*TYRE_EXPIRY_FACTOR;}
