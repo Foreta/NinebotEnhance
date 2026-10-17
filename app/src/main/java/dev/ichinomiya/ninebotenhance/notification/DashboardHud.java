@@ -289,7 +289,7 @@ public final class DashboardHud {
             drawCard(canvas,musicMotion,now,box->drawMusic(canvas,now,box));
             drawCard(canvas,phoneMotion,now,box->drawPhone(canvas,box));
             drawVolume(canvas,now);
-            if(widgets.enabled(WidgetSettings.NAVI_GAUGE))drawGauge(canvas,(width/2f-fit.dx())/scale,(height/2f-fit.dy())/scale,now);
+            if(widgets.enabled(WidgetSettings.NAVI_GAUGE))drawGauge(canvas,(width/2f-fit.dx())/scale,(height*0.25f-fit.dy())/scale,height*0.21f/scale,now);
             if(probeShown())drawProbe(canvas,now);
             for(NotificationTimeline.Entry<Card> e:cards){
                 float exit=e.exit(now);float w=e.data.bitmap.getWidth();SidebarLayout.Box bounds=notificationBox(e,now);float x=bounds.left()+dx,y=bounds.top()+dyN;
@@ -450,24 +450,24 @@ public final class DashboardHud {
     private float voltageWidth(){return metricWidth(widgets.enabled(WidgetSettings.VOLTAGE_CHART),"888.8","V");}
     private float speedWidth(){return metricWidth(widgets.enabled(WidgetSettings.SPEED_CHART),"88.8","km/h");}
     private float powerWidth(){return metricWidth(widgets.enabled(WidgetSettings.POWER_CHART),"-8888","W");}
-    /** Centered ring gauge fed by the navigation app's speed first and the vehicle's rSpeed as fallback; display only, touches pass through. */
-    private static final float GAUGE_RADIUS=84,GAUGE_PAD=10,GAUGE_STROKE=9,GAUGE_MAX=45,GAUGE_START=135,GAUGE_SWEEP=270;
+    /** Ring gauge parked in the top half of the frame so the bottom cards stay visible; fed by the navigation app's speed first and the vehicle's rSpeed as fallback; display only, touches pass through. */
+    private static final float GAUGE_MAX=40,GAUGE_START=135,GAUGE_SWEEP=270;
     private final RectF gaugeArc=new RectF();
-    private void drawGauge(Canvas c,float cx,float cy,long now){
-        float speed=gaugeSpeed(now);
-        paint.setStyle(Paint.Style.FILL);paint.setColor(p.surface());paint.setAlpha(205);c.drawCircle(cx,cy,GAUGE_RADIUS+GAUGE_PAD,paint);paint.setAlpha(255);
-        paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1);paint.setColor(p.border());c.drawCircle(cx,cy,GAUGE_RADIUS+GAUGE_PAD,paint);
-        gaugeArc.set(cx-GAUGE_RADIUS,cy-GAUGE_RADIUS,cx+GAUGE_RADIUS,cy+GAUGE_RADIUS);
-        paint.setStrokeWidth(GAUGE_STROKE);paint.setStrokeCap(Paint.Cap.ROUND);paint.setColor(p.track());
+    private void drawGauge(Canvas c,float cx,float cy,float radius,long now){
+        float pad=radius*0.12f,stroke=radius*0.107f,speed=gaugeSpeed(now);
+        paint.setStyle(Paint.Style.FILL);paint.setColor(p.surface());paint.setAlpha(205);c.drawCircle(cx,cy,radius+pad,paint);paint.setAlpha(255);
+        paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(1);paint.setColor(p.border());c.drawCircle(cx,cy,radius+pad,paint);
+        gaugeArc.set(cx-radius,cy-radius,cx+radius,cy+radius);
+        paint.setStrokeWidth(stroke);paint.setStrokeCap(Paint.Cap.ROUND);paint.setColor(p.track());
         c.drawArc(gaugeArc,GAUGE_START,GAUGE_SWEEP,false,paint);
         if(speed>0){paint.setColor(p.accent());c.drawArc(gaugeArc,GAUGE_START,Math.min(GAUGE_SWEEP,GAUGE_SWEEP*speed/GAUGE_MAX),false,paint);}
         paint.setStyle(Paint.Style.FILL);paint.setStrokeCap(Paint.Cap.BUTT);
-        centerGlyph(c,speed<0?"--":String.valueOf(Math.round(speed)),cx,cy-8,54,p.text(),true);
-        centerGlyph(c,"km/h",cx,cy+28,13,p.unit(),false);
-        String source=gaugeSource(now);if(!source.isEmpty())centerGlyph(c,source,cx,cy+50,11,p.label(),false);
+        centerGlyph(c,speed<0?"--":String.valueOf(Math.round(speed)),cx,cy-radius*0.095f,radius*0.64f,p.text(),true);
+        centerGlyph(c,"km/h",cx,cy+radius*0.33f,radius*0.155f,p.unit(),false);
+        String source=gaugeSource(now);if(!source.isEmpty())centerGlyph(c,source,cx,cy+radius*0.6f,radius*0.13f,p.label(),false);
         if(navi!=null&&navi.fresh(now)&&navi.totalDistance()>0){
             String remain=navi.remainDistance()>=1000?String.format(Locale.ROOT,"剩余 %.1f km",navi.remainDistance()/1000f):"剩余 "+navi.remainDistance()+" m";
-            centerGlyph(c,remain,cx,cy+68,10,p.label(),false);
+            centerGlyph(c,remain,cx,cy+radius*0.81f,radius*0.12f,p.label(),false);
         }
     }
     /** Vertical level bar above the dashboard speaker icon; slides in from the left after a volume change, never a touch target. */
