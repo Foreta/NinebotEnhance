@@ -93,9 +93,9 @@ public final class DashboardHud {
     }
     /** Speed reported by the navigation app, or -1 while none has arrived within its freshness window. */
     private float naviSpeed(long now){return navi==null?-1f:navi.speedKmh(now);}
-    /** What the gauge shows: the navigation app's speed while fresh, otherwise the vehicle's own rSpeed reading. */
-    private float gaugeSpeed(long now){float v=naviSpeed(now);if(v>=0)return v;return speedExpired(now)?-1f:ride.speedKmh();}
-    private String gaugeSource(long now){if(naviSpeed(now)>=0)return "高德";return speedExpired(now)?"":"车辆";}
+    /** What the gauge shows: the vehicle's own rSpeed reading; the navigation app is no longer a speed source. */
+    private float gaugeSpeed(long now){return speedExpired(now)?-1f:ride.speedKmh();}
+    private String gaugeSource(long now){return speedExpired(now)?"":"车辆";}
     public synchronized void reset(){reset("");}
     public synchronized void reset(String request){
         session=request;timeline.clear();phone=music=null;tires=TireTelemetry.EMPTY;battery=BatteryTelemetry.EMPTY;artwork=null;artRevision=-1;epoch="";cursor=-1;receiving=false;lastUpdate=0;simulatedUntil=0;navi=null;
@@ -289,7 +289,7 @@ public final class DashboardHud {
             drawCard(canvas,musicMotion,now,box->drawMusic(canvas,now,box));
             drawCard(canvas,phoneMotion,now,box->drawPhone(canvas,box));
             drawVolume(canvas,now);
-            if(widgets.enabled(WidgetSettings.NAVI_GAUGE))drawGauge(canvas,(width/2f-fit.dx())/scale,(height*0.25f-fit.dy())/scale,height*0.21f/scale,now);
+            if(widgets.enabled(WidgetSettings.NAVI_GAUGE))drawGauge(canvas,(width/2f-fit.dx())/scale,(height*0.30f-fit.dy())/scale,height*0.175f/scale,now);
             if(probeShown())drawProbe(canvas,now);
             for(NotificationTimeline.Entry<Card> e:cards){
                 float exit=e.exit(now);float w=e.data.bitmap.getWidth();SidebarLayout.Box bounds=notificationBox(e,now);float x=bounds.left()+dx,y=bounds.top()+dyN;
